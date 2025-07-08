@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hash-Funktionen Erleben</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <style>
+        /* Grundlegende Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 750px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            margin-top: 0;
+        }
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 80px; /* Kompakter */
+            resize: vertical;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 12px;
+        }
+        .hash-output {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            word-wrap: break-word; /* Wichtig, damit lange Hashes umbrechen */
+            margin-top: 8px;
+            border: 1px solid #bdc3c7;
+            font-size: 0.9rem;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .info-box {
+            background-color: #eaf5ff;
+            border-left: 4px solid #3498db;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* NEU & VERBESSERT: Responsive Flexbox für Lawineneffekt */
+        .flex-container {
+            display: flex;
+            flex-direction: column; /* Standard: Spaltenlayout für kleine Bildschirme */
+            gap: 20px;
+        }
+
+        .flex-item {
+            flex: 1 1 100%; /* Nimmt 100% Breite ein, kann wachsen und schrumpfen */
+            min-width: 0; /* Wichtig: Ermöglicht es, dass der Inhalt (lange Hashes) das Element nicht über seine Grenzen hinausdrückt */
+        }
+
+        /* Wrapper für den Lawineneffekt, um die Breite zu begrenzen und zu zentrieren */
+        .avalanche-wrapper {
+            max-width: 600px; /* Begrenzt die Breite dieses Abschnitts auf größeren Bildschirmen */
+            margin: 20px auto; /* Zentriert den Wrapper innerhalb des übergeordneten Containers */
+        }
+
+        /* Tab-Navigation */
+        .tab-nav {
+            display: flex;
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color: transparent;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #555;
+            position: relative;
+            bottom: -2px;
+            margin-top: 0;
+        }
+        .tab-btn.active {
+            color: #2c3e50;
+            font-weight: bold;
+            border-bottom: 3px solid #3498db;
+        }
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Spezielle Styles für visuelles Feedback */
+        .diff { background-color: #f1c40f; color: #333; border-radius: 2px; }
+        .verification-result { padding: 12px; border-radius: 5px; margin-top: 10px; font-weight: bold; text-align: center; }
+        .verified { background-color: #dff0d8; border: 1px solid #27ae60; color: #27ae60; }
+        .tampered { background-color: #f2dede; border: 1px solid #c0392b; color: #c0392b; }
+
+        /* Media Query für größere Bildschirme */
+        @media (min-width: 768px) {
+            .flex-container {
+                flex-direction: row; /* Zeilenlayout für größere Bildschirme */
+            }
+            .flex-item {
+                flex: 1; /* Verteilt den Platz gleichmäßig, da wir jetzt im Reihenlayout sind */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Hash-Funktionen erleben</h1>
+
+        <!-- Tab-Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="machine">Hash-Maschine</button>
+            <button class="tab-btn" data-tab="avalanche">Lawineneffekt</button>
+            <button class="tab-btn" data-tab="fingerprint">Digitaler Fingerabdruck</button>
+        </div>
+
+        <!-- Tab-Inhalte -->
+        <div class="tab-content">
+
+            <!-- Tab 1: Hash-Maschine -->
+            <div id="machine" class="tab-pane active">
+                <h2>1. Die Hash-Maschine (mit "Salt")</h2>
+                <p>Gib einen beliebigen Text ein und sieh zu, wie in Echtzeit ein Hash-Wert erzeugt wird. Ein "Salt" (geheime Zutat) macht den Hash noch sicherer.</p>
+                
+                <label for="textInput1">Deine Eingabe:</label>
+                <textarea id="textInput1">Hallo Welt!</textarea>
+
+                <label for="saltInput">Salt (geheime Zutat):</label>
+                <input type="text" id="saltInput" placeholder="Füge hier eine geheime Zutat hinzu...">
+                <button id="generateSaltBtn">Zufälligen Salt generieren</button>
+                
+                <label for="algoSelect">Hash-Algorithmus:</label>
+                <select id="algoSelect">
+                    <option value="SHA256">SHA-256 (Sicher)</option>
+                    <option value="SHA1">SHA-1 (Veraltet)</option>
+                    <option value="MD5">MD5 (Unsicher)</option>
+                </select>
+
+                <p style="margin-top: 15px; font-weight: bold;">Ergebnis (Hash-Wert):</p>
+                <div id="hashOutput1" class="hash-output"></div>
+            </div>
+
+            <!-- Tab 2: Lawineneffekt -->
+            <div id="avalanche" class="tab-pane">
+                <h2>2. Der Lawineneffekt</h2>
+                <p>Schon die kleinste Änderung an der Eingabe (ein Buchstabe, ein Punkt) führt zu einem komplett anderen Hash. Vergleiche die beiden Hashes.</p>
+                
+                <div class="avalanche-wrapper">
+                    <div class="flex-container">
+                        <div class="flex-item">
+                            <label for="avalancheInput1">Text 1</label>
+                            <textarea id="avalancheInput1">Der schnelle braune Fuchs springt.</textarea>
+                            <p style="font-weight: bold;">Hash von Text 1 (SHA-256):</p>
+                            <div id="avalancheOutput1" class="hash-output"></div>
+                        </div>
+                        <div class="flex-item">
+                            <label for="avalancheInput2">Text 2</label>
+                            <textarea id="avalancheInput2">Der schnelle braune Fuchs springt!</textarea>
+                            <p style="font-weight: bold;">Hash von Text 2 (Unterschiede markiert):</p>
+                            <div id="avalancheOutput2" class="hash-output"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Digitaler Fingerabdruck -->
+            <div id="fingerprint" class="tab-pane">
+                <h2>3. Der digitale Fingerabdruck</h2>
+                <p>Hashes sind perfekt, um die Integrität von Daten zu prüfen. Wurde eine Datei nach dem Speichern verändert?</p>
+                
+                <label for="contractText">Wichtiger Vertrag:</label>
+                <textarea id="contractText">Ich, Max Mustermann, leihe Anna 10 Euro.</textarea>
+
+                <button id="createFingerprintBtn">Fingerabdruck erstellen & speichern</button>
+                <p style="margin-top: 15px; font-weight: bold;">Gespeicherter Fingerabdruck:</p>
+                <div id="storedFingerprint" class="hash-output">(Noch kein Fingerabdruck erstellt)</div>
+
+                <hr style="margin: 20px 0; border: 1px solid #eee;">
+                <p>Manipuliere nun den Vertragstext und überprüfe ihn erneut.</p>
+                <button id="verifyFingerprintBtn">Vertrag jetzt überprüfen</button>
+                <div id="verificationResult" class="verification-result"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Elemente aus dem DOM holen ---
+            const textInput1 = document.getElementById('textInput1');
+            const saltInput = document.getElementById('saltInput');
+            const generateSaltBtn = document.getElementById('generateSaltBtn');
+            const algoSelect = document.getElementById('algoSelect');
+            const hashOutput1 = document.getElementById('hashOutput1');
+
+            const avalancheInput1 = document.getElementById('avalancheInput1');
+            const avalancheInput2 = document.getElementById('avalancheInput2');
+            const avalancheOutput1 = document.getElementById('avalancheOutput1');
+            const avalancheOutput2 = document.getElementById('avalancheOutput2');
+
+            const contractText = document.getElementById('contractText');
+            const createFingerprintBtn = document.getElementById('createFingerprintBtn');
+            const storedFingerprint = document.getElementById('storedFingerprint');
+            const verifyFingerprintBtn = document.getElementById('verifyFingerprintBtn');
+            const verificationResult = document.getElementById('verificationResult');
+            
+            let savedFingerprint = '';
+
+            // --- Logik für Tab-Navigation ---
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            // Funktion zum Umschalten der Tabs
+            function showTab(tabId) {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+
+                const activeButton = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+                if (activeButton) activeButton.classList.add('active');
+                
+                const activePane = document.getElementById(tabId);
+                if (activePane) activePane.classList.add('active');
+            }
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetPaneId = button.getAttribute('data-tab');
+                    showTab(targetPaneId);
+                });
+            });
+
+            // --- Logik für Idee 1: Hash-Maschine ---
+            function updateHashMachine() {
+                const dataToHash = textInput1.value + saltInput.value;
+                const algo = algoSelect.value;
+                let hash = '';
+                if (dataToHash) {
+                    switch(algo) {
+                        case 'MD5': hash = CryptoJS.MD5(dataToHash).toString(); break;
+                        case 'SHA1': hash = CryptoJS.SHA1(dataToHash).toString(); break;
+                        default: hash = CryptoJS.SHA256(dataToHash).toString(); break;
+                    }
+                }
+                hashOutput1.textContent = hash;
+            }
+
+            generateSaltBtn.addEventListener('click', () => {
+                saltInput.value = Math.random().toString(36).substring(2, 18);
+                updateHashMachine();
+            });
+
+            // --- Logik für Idee 2: Lawineneffekt ---
+            function updateAvalancheEffect() {
+                const hash1 = CryptoJS.SHA256(avalancheInput1.value).toString();
+                const hash2 = CryptoJS.SHA256(avalancheInput2.value).toString();
+                avalancheOutput1.textContent = hash1;
+                
+                let diffHtml = '';
+                // Prüfen, ob die Hashes dieselbe Länge haben, sonst nur bis zur kürzeren Länge vergleichen
+                const minLength = Math.min(hash1.length, hash2.length);
+                for (let i = 0; i < hash2.length; i++) {
+                    // Markiere Unterschiede nur, wenn das Zeichen tatsächlich anders ist oder wenn der erste Hash kürzer ist
+                    if (i < minLength && hash1[i] === hash2[i]) {
+                        diffHtml += hash2[i];
+                    } else if (i >= minLength || hash1[i] !== hash2[i]) {
+                        diffHtml += `<span class="diff">${hash2[i]}</span>`;
+                    }
+                }
+                avalancheOutput2.innerHTML = diffHtml;
+            }
+            
+            // --- Logik für Idee 5: Digitaler Fingerabdruck ---
+            createFingerprintBtn.addEventListener('click', () => {
+                savedFingerprint = CryptoJS.SHA256(contractText.value).toString();
+                storedFingerprint.textContent = savedFingerprint;
+                verificationResult.innerHTML = '';
+                verificationResult.className = 'verification-result';
+                alert('Fingerabdruck wurde erfolgreich erstellt und gespeichert!');
+            });
+            
+            verifyFingerprintBtn.addEventListener('click', () => {
+                if (!savedFingerprint) {
+                    alert('Bitte erstelle zuerst einen Fingerabdruck!');
+                    return;
+                }
+                const currentHash = CryptoJS.SHA256(contractText.value).toString();
+                if (currentHash === savedFingerprint) {
+                    verificationResult.textContent = '✅ VERIFIZIERT: Der Vertrag wurde nicht verändert!';
+                    verificationResult.className = 'verification-result verified';
+                } else {
+                    verificationResult.textContent = '🚨 ALARM: Der Vertrag wurde manipuliert!';
+                    verificationResult.className = 'verification-result tampered';
+                }
+            });
+
+            // --- Event Listener registrieren ---
+            textInput1.addEventListener('input', updateHashMachine);
+            saltInput.addEventListener('input', updateHashMachine);
+            algoSelect.addEventListener('change', updateHashMachine);
+            
+            avalancheInput1.addEventListener('input', updateAvalancheEffect);
+            avalancheInput2.addEventListener('input', updateAvalancheEffect);
+
+            // --- Initiale Berechnungen und Anzeige beim Laden der Seite ---
+            showTab('machine'); // Startet mit dem ersten Tab aktiv
+            updateHashMachine();
+            updateAvalancheEffect();
+        });
+    </script>
+
+</body>
+</html>
